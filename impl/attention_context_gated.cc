@@ -157,7 +157,7 @@ struct LSTMClassifier {
     LookupParameter p_word;
 
     Parameter p_bias;
-    
+
     Parameter p_lbias;
     Parameter p_tag2label;
 
@@ -347,13 +347,13 @@ if(DEBUG)	cerr<<"all input expression done\n";
       	}
       	Expression att_col = transpose(concatenate_cols(att));
       	Expression attexp = softmax(att_col * att2attexp);
-
+/*
 	vector<float> weight = as_vector(cg.incremental_forward(attexp));
 	for (unsigned t = 0; t < weight.size(); t ++){
 		cerr<<weight[t]<<" ";
 	}
 	cerr<<"\n";
-
+*/
       	Expression input_col = concatenate_cols(input);
       	Expression att_pool = input_col * attexp;
 	
@@ -367,13 +367,13 @@ if(DEBUG)	cerr<<"all input expression done\n";
 
         Expression input_col_l = concatenate_cols(input_l);
         Expression att_pool_l = input_col_l * attexp_l;
-
+/*
 	vector<float> weight_l = as_vector(cg.incremental_forward(attexp_l));
         for (unsigned t = 0; t < weight_l.size(); t ++){
                 cerr<<weight_l[t]<<" ";
         }
         cerr<<"\n";
-
+*/
 	vector<Expression> att_r(input_r.size());
         for(unsigned t = 0; t < input_r.size(); t ++){
                 att_r[t] = tanh(affine_transform({attbias_r, input2att_r, input_r[t], target2att_r, target}));
@@ -383,13 +383,13 @@ if(DEBUG)	cerr<<"all input expression done\n";
 
         Expression input_col_r = concatenate_cols(input_r);
         Expression att_pool_r = input_col_r * attexp_r;
-
+/*
 	vector<float> weight_r = as_vector(cg.incremental_forward(attexp_r));
         for (unsigned t = 0; t < weight_r.size(); t ++){
                 cerr<<weight_r[t]<<" ";
         }
         cerr<<"\n";
-
+*/
 	Expression zl = exp(affine_transform({i_zlbias, i_lh2zl, att_pool_l, i_th2zl, target}));
         Expression zr = exp(affine_transform({i_zrbias, i_rh2zr, att_pool_r, i_th2zr, target}));
         Expression zlr = exp(affine_transform({i_zlrbias, i_lrh2zlr, att_pool, i_th2zlr, target}));
@@ -399,7 +399,7 @@ if(DEBUG)	cerr<<"all input expression done\n";
         Expression zlgate = cdiv(zl, zsum);
         Expression zrgate = cdiv(zr, zsum);
         Expression zlrgate = cdiv(zlr,zsum);
-
+/*
 	vector<float> weight_zlr = as_vector(cg.incremental_forward(zlrgate));
         for (unsigned t = 0; t < weight_zlr.size(); t ++){
                 cerr<<weight_zlr[t]<<" ";
@@ -417,7 +417,7 @@ if(DEBUG)	cerr<<"all input expression done\n";
                 cerr<<weight_zr[t]<<" ";
         }
         cerr<<"\n";
-
+*/
         Expression final_lr = cwise_multiply(zlgate, att_pool_l) + cwise_multiply(zrgate, att_pool_r) + cwise_multiply(zlrgate, att_pool);
 
 /*
