@@ -1,4 +1,4 @@
-This implementation is based on the [dynet 1.0 library](https://github.com/clab/dynet) for this software to function.
+This implementation is based on the [dynet 1.0 library](https://github.com/clab/dynet) for this software to function. The paper is  "Attention Modeling for Targeted Sentiment".
 
 #### Building
 
