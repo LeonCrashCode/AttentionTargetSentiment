@@ -3,8 +3,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 foreach(TARGET
 	attention
 	attention_context
-	attention_context_gated
-	attention_context_gated2)
+	attention_context_gated)
+
   ADD_EXECUTABLE(${TARGET} ${TARGET}.cc)
   if (WITH_CUDA_BACKEND)
     target_link_libraries(${TARGET} gdynet ${LIBS})
