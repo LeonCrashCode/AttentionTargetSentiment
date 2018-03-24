@@ -54,6 +54,14 @@ unsigned dev_neg;
 unsigned tst_neu;
 unsigned tst_pos;
 unsigned tst_neg;
+/*
+input:
+    argc: the numner of parameter
+    argv: the parameters
+    conf: the variable storing parameters
+output:
+    none
+*/
 void InitCommandLine(int argc, char** argv, po::variables_map* conf) {
   po::options_description opts("Configuration options");
   opts.add_options()
@@ -90,6 +98,13 @@ void InitCommandLine(int argc, char** argv, po::variables_map* conf) {
   }
 }
 
+/*
+make string lowercase
+input:
+    line: input string
+output:
+    none
+*/
 void normalize_digital_lower(string& line){
   for(unsigned i = 0; i < line.size(); i ++){
     if(line[i] >= 'A' && line[i] <= 'Z'){
@@ -98,6 +113,9 @@ void normalize_digital_lower(string& line){
   }
 }
 
+/*
+the Instance class for training, development and test dataset
+*/
 class Instance{
 public:
 	vector<unsigned> raws;
@@ -115,7 +133,10 @@ public:
 		lows.clear();
 		words.clear();
 		lex_score.clear();
-	}	
+	}
+    /*
+    sequencitally output instance
+    */
 	friend ostream& operator << (ostream& out, Instance& instance){
 		for(unsigned i = 0; i < instance.raws.size(); i ++){
 			out << wd.convert(instance.raws[i]) << "/"
@@ -130,6 +151,16 @@ public:
 		out<<"\n";
 		return out;
 	}
+    /*
+    from the string to initialized instance
+    input:
+        line: input string
+        neu: neutron label counting 
+        pos: positive label counting
+        neg: negative lable counting
+    output:
+        none
+    */
 	void load(const string& line, unsigned& neu, unsigned& pos, unsigned& neg){
                 istringstream in(line);
                 string word;
@@ -198,6 +229,11 @@ struct LSTMClassifier {
     float zero = 0;
     float one = 1.0;
 
+    /*
+    construct function
+    input:
+        model: neural network model
+    */
     explicit LSTMClassifier(Model& model) :
         l2rbuilder(LAYERS, WORD_DIM , HIDDEN_DIM, &model),
         r2lbuilder(LAYERS, WORD_DIM , HIDDEN_DIM, &model)
@@ -245,8 +281,16 @@ struct LSTMClassifier {
 	    p_word.initialize(it.first, it.second);
         }
     }
-
-    // return Expression of total loss
+ 
+    /*
+    input:
+        inst: input instance
+        cg: computational graph
+        num_correct: correct label counting
+        pred: predict label
+    output:
+        return Expression of total loss
+    */
     Expression BuildGraph(Instance& inst, ComputationGraph& cg, float& num_correct, float* pred, bool train) {
         const vector<unsigned>& sent = inst.words;
 	int label = inst.label;
@@ -494,7 +538,19 @@ void output(vector<Instance>& instances, LSTMClassifier& lstmClassifier, const u
     
     cerr<<"Macro F1: "<< f1 <<" ";
 }
-
+/*
+evaluate the model
+input:
+    instances: the set of instances waiting to be evaluated
+    lstmClassifier: the model
+    acc: accuracy
+    f1: F1 score
+    neu: the number of neutron label
+    pos: the number of positive label
+    neg: the number of negative label
+output:
+    none
+*/
 void evaluate(vector<Instance>& instances, LSTMClassifier& lstmClassifier, float& acc, float& f1,
         const unsigned& neu, const unsigned& pos, const unsigned& neg)
 {
@@ -523,15 +579,27 @@ void evaluate(vector<Instance>& instances, LSTMClassifier& lstmClassifier, float
     cerr<<"Macro F1: "<< f1 <<" ";
 }
 
+/*
+    main entry
+*/
 int main(int argc, char** argv) {
+    /*
+    initailized dynet using the input parameters, which are stored in argv
+    */
     DynetParams dynet_params = extract_dynet_params(argc, argv);
     dynet_params.random_seed = 1989121013;
     dynet::initialize(dynet_params);
   
+    /*
+    print out the input parameters
+    */
     cerr << "COMMAND:";
     for (unsigned i = 0; i < static_cast<unsigned>(argc); ++i) cerr << ' ' << argv[i];
     cerr << endl;
 
+    /*
+    save the input parameters into conf, which is used to initialied hyper parameters of neural network
+    */
     po::variables_map conf;
     InitCommandLine(argc, argv, &conf);
     WORD_DIM = conf["word_dim"].as<unsigned>();
@@ -546,6 +614,9 @@ int main(int argc, char** argv) {
     assert(unk_prob >= 0.); assert(unk_prob <= 1.);
     assert(pdrop >= 0.); assert(pdrop <= 1.);
 
+    /*
+    training, development and test instance
+    */
     vector<Instance> training,dev,test;
     string line;
     
@@ -565,6 +636,10 @@ int main(int argc, char** argv) {
       cerr << pretrained.size() << " ok\n";
     }
     
+    /*
+    reading the lexicon, actually these are not used in the whole program.
+    this reading is to keep the lexicon index consistent if you use the pretrained model for testing.
+    */
     if(conf.count("lexicon")){
       cerr << "Loading from " << conf["lexicon"].as<string>() << " as lexion dictionary ...";
       ifstream in(conf["lexicon"].as<string>().c_str());
@@ -577,6 +652,7 @@ int main(int argc, char** argv) {
       cerr << lex_dict.size() << " ok\n";
     }
     train_neu = train_pos = train_neg = 0;
+
     //reading training data
     cerr << "Loading from " << conf["training_data"].as<string>() << "as training data : ";
     {
@@ -591,8 +667,8 @@ int main(int argc, char** argv) {
     }
 
     //couting
-    set<unsigned> training_vocab;
-    set<unsigned> singletons;
+    set<unsigned> training_vocab; //the set of indexs of words which are in training data
+    set<unsigned> singletons; // the set of indexs of words which appear only once in training data
     {
       map<unsigned, unsigned> counts;
       for (auto& sent : training){
@@ -614,7 +690,7 @@ int main(int argc, char** argv) {
 	     << " where The singletons have " << singletons.size() << "\n";
     }
 
-    //replace unk 
+    //replace unk, uniformly randomly replace the singletons with UNK 
     {
       int unk = 0;
       int total = 0;
@@ -631,6 +707,7 @@ int main(int argc, char** argv) {
     }
 
     //import lexicon score for each word
+    //these are not used
     {
       for(auto& sent : training){
         const vector<unsigned>& raws = sent.raws;
@@ -750,10 +827,13 @@ int main(int argc, char** argv) {
        << "-pid" << getpid() << ".params";
     const string fname = os.str();
     cerr << "Parameter will be written to: " << fname << endl;
+
     float best = 0;
     float bestf1 = 0;
-    Model model;
-    Trainer* sgd = nullptr;
+
+    Model model; // model instance
+    Trainer* sgd = nullptr; // trainer instance
+
     unsigned method = conf["train_methods"].as<unsigned>();
     if(method == 0)
   	sgd = new SimpleSGDTrainer(&model,0.1, 0.1);
@@ -767,9 +847,9 @@ int main(int argc, char** argv) {
 	sgd = new AdamTrainer(&model);
   	sgd->clipping_enabled = false;
     } 
-    LSTMClassifier lstmClassifier(model);
+    LSTMClassifier lstmClassifier(model); // sentiment classifier
 
-	if (conf.count("model")) {
+	if (conf.count("model")) { // if pretrained model is given
     string fname = conf["model"].as<string>();
     ifstream in(fname);
     boost::archive::text_iarchive ia(in);
@@ -787,12 +867,12 @@ if(DEBUG)	cerr<<"begin\n";
     unsigned lines = 0;
     int exceed_count = 0;
     unsigned count = 0;
-    while(count < conf["count_limit"].as<unsigned>()) {
+    while(count < conf["count_limit"].as<unsigned>()) { // train start
         Timer iteration("completed in");
         float loss = 0;
         unsigned ttags = 0;
         for (unsigned i = 0; i < report_every_i; ++i) {
-            if (si == training.size()) {
+            if (si == training.size()) { // each epoch, we test the model on development dataset
                 si = 0;
                 if (first) {
                     first = false;
@@ -804,7 +884,7 @@ if(DEBUG)	cerr<<"begin\n";
 			float f1 = 0.f;
                         cerr << "\n***DEV [epoch=" << (lines / (float)training.size()) << "] ";
                         evaluate(dev, lstmClassifier, acc, f1, dev_neu, dev_pos, dev_neg);
-                        if (acc > best || (fabs(acc - best) <= 0.0000001 && f1 > bestf1)) {
+                        if (acc > best || (fabs(acc - best) <= 0.0000001 && f1 > bestf1)) { // if get better model on development dataset, we test the model on test dataset
                             best = acc;
 			    bestf1 = f1;
                             cerr<< "Exceed" << " ";
